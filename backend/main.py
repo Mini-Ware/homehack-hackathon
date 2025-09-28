@@ -107,17 +107,17 @@ def get_openai_client() -> OpenAI:
 
 
 async def call_openai_with_messages(messages: list[dict[str, str]]) -> str:
-	"""Execute an OpenAI responses call in a background thread."""
+	"""Execute an OpenAI chat completion call in a background thread."""
 
 	client = get_openai_client()
 
 	def _invoke() -> str:
-		response = client.responses.create(
+		response = client.chat.completions.create(
 			model=OPENAI_MODEL,
 			temperature=OPENAI_TEMPERATURE,
 			messages=messages,
 		)
-		return response.output_text.strip()
+		return response.choices[0].message.content.strip()
 
 	try:
 		return await asyncio.to_thread(_invoke)
@@ -155,7 +155,8 @@ async def fetch_exa_results(query: str, max_results: int) -> list[SearchResult]:
 				headers=headers,
 				json=payload,
 			)
-			print(response.status)
+			print(response.status_code)
+			print(response.content)
 			# response.raise_for_status()
 	except httpx.HTTPError as exc:  # pragma: no cover - external dependency
 		logger.warning("Exa search failed for '%s': %s", query, exc)
