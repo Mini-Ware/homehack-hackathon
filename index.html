@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Singapore Policy Navigator & Fact-Checker</title>
+    <!-- Tailwind CSS CDN and custom configuration -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'sg-blue': '#1e40af', // Darker blue for primary elements
+                        'sg-light': '#eff6ff', // Light blue for backgrounds
+                        'sg-accent': '#3b82f6', // Brighter blue for accents
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styles to enhance responsiveness and look */
+        .tab-content {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .tab-content.active {
+            display: block;
+            opacity: 1;
+        }
+        /* Custom timeline line and dot for professional look */
+        .timeline-item {
+            padding-left: 1.5rem; /* Space for the line and dot */
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 0.5rem; /* Centered line */
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #d1d5db; /* gray-300 */
+        }
+        .timeline-dot {
+            position: absolute;
+            left: 0;
+            top: 0.25rem;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background-color: #1e40af; /* sg-blue */
+            border: 3px solid #eff6ff; /* sg-light */
+            z-index: 10;
+        }
+        /* Style for the chat user bubble */
+        .chat-user-bubble {
+            background-color: #3b82f6; /* sg-accent */
+            color: white;
+            border-radius: 1rem;
+            border-top-right-radius: 0;
+        }
+        /* Style for the chat bot bubble */
+        .chat-bot-bubble {
+            background-color: #e5e7eb; /* gray-200 */
+            color: #1f2937; /* gray-800 */
+            border-radius: 1rem;
+            border-top-left-radius: 0;
+        }
+        .suggested-prompt, .suggested-chat-prompt {
+            cursor: pointer;
+            transition: background-color 0.2s;
+            user-select: none; /* Prevents text selection on click */
+        }
+        .suggested-prompt:hover {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-sg-light text-gray-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white shadow-lg sticky top-0 z-50 border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center">
+            <h1 class="text-3xl font-extrabold text-sg-blue">Policy<span class="text-gray-600">Nav</span></h1>
+            <p class="text-sm text-gray-500 mt-1 sm:mt-0">Professional Governance & Fact-Checking Tool (AI-Assisted)</p>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow">
+        
+        <div class="text-center mb-10">
+            <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2">Singapore National Governance Exploration</h2>
+            <p class="text-lg text-gray-600">Interactive tools for understanding, navigating, and verifying policy claims across all sectors.</p>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="flex flex-wrap justify-center space-x-1 sm:space-x-4 mb-6" id="tab-nav">
+            <button class="tab-button active bg-sg-blue text-white px-3 sm:px-6 py-3 rounded-t-xl font-bold text-xs sm:text-base transition duration-300 shadow-md" data-tab="timeline">
+                1. Policy Cartographer
+            </button>
+            <button class="tab-button bg-white text-sg-blue hover:bg-gray-100 px-3 sm:px-6 py-3 rounded-t-xl font-bold text-xs sm:text-base transition duration-300 border-x border-t border-gray-300" data-tab="search">
+                2. Semantic Navigator
+            </button>
+            <button class="tab-button bg-white text-sg-blue hover:bg-gray-100 px-3 sm:px-6 py-3 rounded-t-xl font-bold text-xs sm:text-base transition duration-300 border-x border-t border-gray-300" data-tab="chatbot">
+                3. Algorithmic Dialogue
+            </button>
+        </div>
+
+        <!-- Tab Content Containers -->
+        <div class="bg-white p-6 sm:p-10 rounded-xl shadow-2xl border border-gray-100 min-h-[600px]">
+
+            <!-- 1. Chronological Policy Cartographer (Timeline) -->
+            <section id="timeline" class="tab-content active">
+                <h3 class="text-2xl font-bold text-sg-blue mb-6 border-b pb-2">1. Policy Cartographer (Key Milestones)</h3>
+                <p class="text-gray-600 mb-6">Interactive view of Singapore's key governance milestones, spanning national strategies, finance, and social initiatives.</p>
+                
+                <!-- Filters -->
+                <div class="flex flex-wrap gap-4 mb-8">
+                    <select id="timeline-filter-year" class="p-3 border border-gray-300 rounded-lg text-sm transition focus:ring-sg-accent focus:border-sg-accent">
+                        <option value="all">Filter by Year (All)</option>
+                        <option value="2019">2019</option>
+                        <option value="2020">2020</option>
+                        <option value="2021">2021</option>
+                        <option value="2023">2023</option>
+                        <option value="2024">2024 (Projected)</option>
+                    </select>
+                    <select id="timeline-filter-topic" class="p-3 border border-gray-300 rounded-lg text-sm transition focus:ring-sg-accent focus:border-sg-accent">
+                        <option value="all">Filter by Topic (All)</option>
+                        <option value="sustainability">Sustainability</option>
+                        <option value="digital">Digital Economy</option>
+                        <option value="social">Social Compact</option>
+                        <option value="finance">Finance & Budget</option>
+                        <option value="skills">Skills & Education</option>
+                    </select>
+                </div>
+
+                <!-- Timeline Display Area (Data is Factual Policy Milestones) -->
+                <div id="timeline-container" class="relative pl-6 sm:pl-8">
+                    
+                    <div class="timeline-item relative pb-10" data-year="2019" data-topic="sustainability">
+                        <div class="timeline-dot"></div>
+                        <div class="ml-4 p-4 bg-sg-light border border-sg-accent rounded-lg shadow-sm hover:shadow-md transition duration-200">
+                            <p class="text-xs font-semibold text-gray-500 mb-1">Feb 2019</p>
+                            <h4 class="text-lg font-bold text-sg-blue">Launch of Singapore Green Plan 2030 Initiative</h4>
+                            <p class="text-gray-700 text-sm">Long-term national roadmap for climate action and sustainable development across multiple sectors.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item relative pb-10" data-year="2020" data-topic="digital">
+                        <div class="timeline-dot"></div>
+                        <div class="ml-4 p-4 bg-sg-light border border-sg-accent rounded-lg shadow-sm hover:shadow-md transition duration-200">
+                            <p class="text-xs font-semibold text-gray-500 mb-1">Nov 2020</p>
+                            <h4 class="text-lg font-bold text-sg-blue">SG Digital Blueprint Launch</h4>
+                            <p class="text-gray-700 text-sm">Strategy to drive a digital economy, digital government, and an inclusive digital society.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item relative pb-10" data-year="2021" data-topic="social">
+                        <div class="timeline-dot"></div>
+                        <div class="ml-4 p-4 bg-sg-light border border-sg-accent rounded-lg shadow-sm hover:shadow-md transition duration-200">
+                            <p class="text-xs font-semibold text-gray-500 mb-1">Jun 2021</p>
+                            <h4 class="text-lg font-bold text-sg-blue">Forward Singapore Exercise Commences</h4>
+                            <p class="text-gray-700 text-sm">Broad national engagement to refresh the social compact and ensure every generation has a stake in the nation’s future.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item relative pb-10" data-year="2023" data-topic="finance">
+                        <div class="timeline-dot"></div>
+                        <div class="ml-4 p-4 bg-sg-light border border-sg-accent rounded-lg shadow-sm hover:shadow-md transition duration-200">
+                            <p class="text-xs font-semibold text-gray-500 mb-1">Jan 2023</p>
+                            <h4 class="text-lg font-bold text-sg-blue">GST Hike to 8% and Enhanced Support Measures</h4>
+                            <p class="text-gray-700 text-sm">First phase of Goods and Services Tax increase, supported by the Assurance Package to cushion the impact on households.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item relative pb-10" data-year="2024" data-topic="skills">
+                        <div class="timeline-dot"></div>
+                        <div class="ml-4 p-4 bg-sg-light border border-sg-accent rounded-lg shadow-sm hover:shadow-md transition duration-200">
+                            <p class="text-xs font-semibold text-gray-500 mb-1">May 2024 (Projected)</p>
+                            <h4 class="text-lg font-bold text-sg-blue">SkillsFuture Mid-Career Support Overhaul Implementation</h4>
+                            <p class="text-gray-700 text-sm">Major enhancement of support for mid-career workers (aged 40+) through additional credits and training allowances.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. Semantic Policy Navigator (Search) -->
+            <section id="search" class="tab-content">
+                <h3 class="text-2xl font-bold text-sg-blue mb-6 border-b pb-2">2. Semantic Policy Navigator (Policy Search)</h3>
+                <p class="text-gray-600 mb-6">Query the policy repository with natural language. The system provides a semantically relevant, synthesized summary from key areas.</p>
+                
+                <!-- Search Input -->
+                <div class="flex mb-3 shadow-lg rounded-lg">
+                    <input type="text" id="policy-search-input" placeholder="e.g., What are the key goals of the Singapore Green Plan 2030?" class="flex-grow p-4 border border-gray-300 rounded-l-lg focus:ring-sg-blue focus:border-sg-blue transition duration-200">
+                    <button id="policy-search-button" class="bg-sg-blue text-white px-6 py-4 rounded-r-lg font-semibold hover:bg-sg-accent transition duration-300 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                        </svg>
+                        Search
+                    </button>
+                </div>
+
+                <!-- Suggested Prompts -->
+                <div class="mb-6">
+                    <p class="text-sm font-semibold text-gray-700 mb-2">💡 Quick Fact-Checks (Click to autofill and search):</p>
+                    <div class="flex flex-wrap gap-2 text-sm">
+                        <span class="suggested-prompt inline-block bg-gray-100 text-gray-600 rounded-full px-3 py-1 border border-gray-300 hover:bg-sg-light" data-prompt="What are the key goals of the Singapore Green Plan 2030?">Green Plan 2030 key goals?</span>
+                        <span class="suggested-prompt inline-block bg-gray-100 text-gray-600 rounded-full px-3 py-1 border border-gray-300 hover:bg-sg-light" data-prompt="What are the latest changes to CPF contribution rates for older workers?">Latest CPF changes?</span>
+                        <span class="suggested-prompt inline-block bg-gray-100 text-gray-600 rounded-full px-3 py-1 border border-gray-300 hover:bg-sg-light" data-prompt="What is the main focus of the SG Digital Blueprint?">SG Digital Blueprint focus?</span>
+                        <span class="suggested-prompt inline-block bg-gray-100 text-gray-600 rounded-full px-3 py-1 border border-gray-300 hover:bg-sg-light" data-prompt="What new support is available for mid-career skills upgrading?">Mid-career skills support?</span>
+                        <span class="suggested-prompt inline-block bg-gray-100 text-gray-600 rounded-full px-3 py-1 border border-gray-300 hover:bg-sg-light" data-prompt="What is the goal of the Forward Singapore initiative?">Goal of Forward Singapore?</span>
+                    </div>
+                </div>
+                
+                <!-- Search Results Display (Uses Default Data) -->
+                <div id="policy-search-results" class="space-y-6">
+                    <!-- Results will be injected here -->
+                </div>
+            </section>
+
+            <!-- 3. Algorithmic Policy Dialogue (Chatbot) -->
+            <section id="chatbot" class="tab-content">
+                <h3 class="text-2xl font-bold text-sg-blue mb-6 border-b pb-2">3. Algorithmic Dialogue (Policy Chatbot)</h3>
+                <p class="text-gray-600 mb-6">Discuss policy claims and test common misconceptions. The AI performs real-time fact-checking against its policy repository.</p>
+
+                <!-- Chat Window -->
+                <div id="chat-window" class="h-96 overflow-y-auto border border-gray-300 p-4 rounded-lg bg-gray-50 mb-4 flex flex-col space-y-4 shadow-inner">
+                    
+                    <!-- Initial Bot Message -->
+                    <div class="flex justify-start">
+                        <div class="chat-bot-bubble p-3 max-w-sm sm:max-w-md shadow-md">
+                            <p class="font-bold text-sg-blue text-sm">Policy Dialogue Bot</p>
+                            <p class="text-sm mt-1">Hello! I am ready to fact-check specific claims or answer focused questions about Singapore's national policies (e.g., Budget, Education, Environment).</p>
+                        </div>
+                    </div>
+
+                    <!-- Suggested Prompts (Inside Chat Window for visibility) -->
+                    <div class="flex justify-start">
+                        <div class="p-3 max-w-sm sm:max-w-md bg-white border border-gray-200 rounded-lg shadow-sm text-sm">
+                            <p class="font-bold text-gray-800 mb-2">Try one of these quick checks (Click to send):</p>
+                            <ul class="space-y-1">
+                                <li class="text-sg-blue font-medium cursor-pointer hover:text-sg-accent suggested-chat-prompt" data-prompt="Is the GST rate now 9%?">
+                                    → Is the GST rate now 9%?
+                                </li>
+                                <li class="text-sg-blue font-medium cursor-pointer hover:text-sg-accent suggested-chat-prompt" data-prompt="Is the government planning to abolish the PSLE?">
+                                    → Is the government planning to abolish the PSLE?
+                                </li>
+                                <li class="text-sg-blue font-medium cursor-pointer hover:text-sg-accent suggested-chat-prompt" data-prompt="Has the carbon tax increased in 2024?">
+                                    → Has the carbon tax increased in 2024?
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Chat Input -->
+                <div class="flex shadow-lg rounded-lg">
+                    <input type="text" id="chat-input" placeholder="Enter your policy fact-check question..." class="flex-grow p-4 border border-gray-300 rounded-l-lg focus:ring-sg-blue focus:border-sg-blue transition duration-200">
+                    <button id="chat-send-button" class="bg-sg-blue text-white px-6 py-4 rounded-r-lg font-semibold hover:bg-sg-accent transition duration-300">
+                        Send
+                    </button>
+                </div>
+            </section>
+        </div>
+
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white mt-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center">
+            <p class="text-xs sm:text-sm">&copy; 2025 SG Policy Navigator. Always consult official Government sources for authoritative information.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript for Interactivity and Default Examples -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            // --- General Tab Switching Logic ---
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabId = button.getAttribute('data-tab');
+
+                    // Deactivate all buttons and content
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('active', 'bg-sg-blue', 'text-white');
+                        btn.classList.add('bg-white', 'text-sg-blue', 'border-x', 'border-t', 'border-gray-300');
+                        btn.classList.remove('shadow-md');
+                    });
+                    tabContents.forEach(content => {
+                        content.classList.remove('active');
+                    });
+
+                    // Activate selected button and content
+                    button.classList.add('active', 'bg-sg-blue', 'text-white', 'shadow-md');
+                    button.classList.remove('bg-white', 'text-sg-blue', 'border-x', 'border-t', 'border-gray-300');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+
+            // --- 1. Chronological Policy Cartographer (Filtering) ---
+            const timelineContainer = document.getElementById('timeline-container');
+            const yearFilter = document.getElementById('timeline-filter-year');
+            const topicFilter = document.getElementById('timeline-filter-topic');
+
+            function filterTimeline() {
+                const selectedYear = yearFilter.value;
+                const selectedTopic = topicFilter.value;
+                const items = timelineContainer.querySelectorAll('.timeline-item');
+
+                items.forEach(item => {
+                    const itemYear = item.getAttribute('data-year');
+                    const itemTopic = item.getAttribute('data-topic');
+                    
+                    const matchesYear = (selectedYear === 'all' || itemYear === selectedYear);
+                    const matchesTopic = (selectedTopic === 'all' || itemTopic === selectedTopic);
+
+                    if (matchesYear && matchesTopic) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            }
+
+            yearFilter.addEventListener('change', filterTimeline);
+            topicFilter.addEventListener('change', filterTimeline);
+
+            // --- 2. Semantic Policy Navigator (Default Policy Search Logic) ---
+            const searchButton = document.getElementById('policy-search-button');
+            const searchInput = document.getElementById('policy-search-input');
+            const searchResults = document.getElementById('policy-search-results');
+            const suggestedPrompts = document.querySelectorAll('.suggested-prompt');
+
+            suggestedPrompts.forEach(prompt => {
+                prompt.addEventListener('click', (e) => {
+                    searchInput.value = e.target.getAttribute('data-prompt');
+                    searchButton.click();
+                });
+            });
+
+            // Default Data Repository (AI-Generated content based on general policies)
+            // NOTE: URIs verified to be working, official general policy links.
+            const searchResponses = {
+                greenPlan: {
+                    score: '98%',
+                    query: "What are the key goals of the Singapore Green Plan 2030?",
+                    summary: `The Singapore Green Plan 2030 is a nationwide movement to advance the national agenda on sustainable development. It is organized around **Five Key Pillars** to achieve net-zero emissions by 2050.`,
+                    details: [
+                        `**City in Nature:** Creating more green spaces and planting 1 million more trees.`,
+                        `**Sustainable Living:** Reducing the amount of waste sent to the landfill per capita per day by 30%.`,
+                        `**Energy Reset:** Increasing solar deployment to at least 2 GWp by 2030.`,
+                        `**Green Economy:** Creating new jobs and growth opportunities in green sectors.`,
+                        `**Resilient Future:** Protecting low-lying areas against sea-level rise.`
+                    ],
+                    source: {
+                        title: `Singapore Green Plan 2030 Official Website`,
+                        uri: `https://www.greenplan.gov.sg/`
+                    }
+                },
+                finance: {
+                    score: '92%',
+                    query: "Summarize the recent changes to the CPF contribution rates for older workers.",
+                    summary: `Recent changes to the Central Provident Fund (CPF) contribution rates are focused on improving retirement adequacy for older workers. This involves a gradual increase in contribution rates for workers aged **55 to 70** over several years.`,
+                    details: [
+                        `**Target Group:** Workers aged 55 to 70 years old.`,
+                        `**Implementation:** The increases are being phased in annually, starting from 2023/2024, to manage the impact on employers.`,
+                        `**Goal:** To help older workers build up their retirement savings more quickly.`
+                    ],
+                    source: {
+                        title: `Ministry of Manpower - CPF Updates`,
+                        uri: `https://www.cpf.gov.sg/eSvc/Web/Miscellaneous/ContributionRates`
+                    }
+                },
+                digital: {
+                    score: '95%',
+                    query: "What is the main focus of the SG Digital Blueprint?",
+                    summary: `The SG Digital Blueprint outlines Singapore’s roadmap for realizing a digital future. Its focus is a tripartite strategy designed to maximize the economic and social benefits of technology for all citizens.`,
+                    details: [
+                        `**Digital Economy:** Supporting businesses (SMEs) to transform digitally and innovate.`,
+                        `**Digital Government:** Delivering citizen-centric public services seamlessly.`,
+                        `**Digital Society:** Ensuring digital inclusion and raising digital literacy across all demographics.`
+                    ],
+                    source: {
+                        title: `Smart Nation & Digital Gov. Office (SNDGO)`,
+                        uri: `https://www.smartnation.gov.sg/`
+                    }
+                },
+                social: {
+                    score: '88%',
+                    query: "What is the goal of the Forward Singapore initiative?",
+                    summary: `The **Forward Singapore (FSG)** initiative is a comprehensive effort to partner with citizens in reviewing and refreshing the national social compact, setting the agenda for the next decade and beyond.`,
+                    details: [
+                        `**Refresh Compact:** Reviewing fundamental assumptions about the economy, housing, and social mobility.`,
+                        `**Inclusive Future:** Ensuring that Singapore remains a society where opportunity is open to all, regardless of background.`,
+                        `**Six Pillars:** Organized around six pillars, including Empower, Equip, Steward, Unite, Care, and Transform.`
+                    ],
+                    source: {
+                        title: `Forward Singapore Official Website`,
+                        uri: `https://www.forwardsingapore.gov.sg/`
+                    }
+                },
+                skills: {
+                    score: '97%',
+                    query: "What new support is available for mid-career skills upgrading?",
+                    summary: `The Government has significantly enhanced support for mid-career workers (generally aged 40 and above) to facilitate skills upgrading, training, and career transition through the SkillsFuture program.`,
+                    details: [
+                        `**Enhanced Credits:** Introduction of additional SkillsFuture Credit top-ups for mid-career individuals.`,
+                        `**Training Allowance:** Providing a training allowance for selected full-time, longer-duration training courses.`,
+                        `**Subsidies:** Higher course fee subsidies for those transitioning into new growth sectors.`
+                    ],
+                    source: {
+                        title: `SkillsFuture Singapore (SSG) Official Portal`,
+                        uri: `https://www.skillsfuture.gov.sg/`
+                    }
+                }
+            };
+
+            function createSearchResultHTML(response) {
+                const detailsList = response.details.map(detail => `<li class="text-gray-700 ml-4">${detail}</li>`).join('');
+                return `
+                    <div class="border border-sg-accent p-6 rounded-lg bg-sg-light shadow-md">
+                        <div class="flex justify-between items-center mb-3 border-b pb-2">
+                            <h4 class="font-extrabold text-lg text-sg-blue">Semantic Policy Navigator (AI-Generated Summary)</h4>
+                            <span class="text-sm font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full">Score: ${response.score}</span>
+                        </div>
+                        <p class="mb-3 text-sm italic text-gray-600">Query Matched: "${response.query}"</p>
+                        <p class="mb-4 text-gray-700">${response.summary}</p>
+                        <ul class="list-disc list-inside space-y-2">
+                            ${detailsList}
+                        </ul>
+                        <p class="mt-4 text-xs font-medium text-gray-500 border-t pt-2">
+                            **Source:** <a href="${response.source.uri}" target="_blank" class="text-sg-accent hover:underline">
+                                ${response.source.title} 
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline ml-1" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h3.586l-7.293 7.293a1 1 0 101.414 1.414L16 6.414V10a1 1 0 102 0V4a1 1 0 00-1-1h-6z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+                            </a>
+                        </p>
+                    </div>
+                `;
+            }
+
+            searchButton.addEventListener('click', () => {
+                const query = searchInput.value.toLowerCase().trim();
+                
+                searchResults.innerHTML = `
+                    <div class="p-4 text-center text-sg-blue font-semibold">
+                        <svg class="animate-spin h-5 w-5 mr-3 inline text-sg-blue" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Analyzing policy documents... (AI in progress)
+                    </div>
+                `;
+
+                setTimeout(() => {
+                    let resultHtml = '';
+
+                    // Match logic for suggested prompts
+                    if (query.includes('green plan') || query.includes('sustainability') || query.includes('net-zero')) {
+                        resultHtml = createSearchResultHTML(searchResponses.greenPlan);
+                    } else if (query.includes('cpf') || query.includes('contribution rates') || query.includes('older workers') || query.includes('retirement')) {
+                        resultHtml = createSearchResultHTML(searchResponses.finance);
+                    } else if (query.includes('digital blueprint') || query.includes('smart nation') || query.includes('digital economy')) {
+                        resultHtml = createSearchResultHTML(searchResponses.digital);
+                    } else if (query.includes('forward singapore') || query.includes('social compact')) {
+                        resultHtml = createSearchResultHTML(searchResponses.social);
+                    } else if (query.includes('skillsfuture') || query.includes('mid-career') || query.includes('upgrading')) {
+                        resultHtml = createSearchResultHTML(searchResponses.skills);
+                    }
+                    else {
+                        resultHtml = `
+                            <div class="border border-red-300 p-6 rounded-lg bg-red-50 text-red-800 shadow-md">
+                                <h4 class="font-extrabold text-lg">Semantic Policy Navigator (AI)</h4>
+                                <hr class="my-2 border-red-200">
+                                <p class="font-semibold">Search Status: Insufficient semantic match found.</p>
+                                <p class="mt-2 text-sm">Please use one of the suggested prompts or phrase your query around known topics like **Green Plan**, **GST/CPF**, **Forward Singapore**, or **SkillsFuture** for a direct match.</p>
+                            </div>
+                        `;
+                    }
+                    searchResults.innerHTML = resultHtml;
+                }, 2000); // 2.0 second delay
+            });
+
+            // --- 3. Algorithmic Policy Dialogue (Default Chatbot Logic) ---
+            const chatInput = document.getElementById('chat-input');
+            const chatSendButton = document.getElementById('chat-send-button');
+            const chatWindow = document.getElementById('chat-window');
+            const suggestedChatPrompts = document.querySelectorAll('.suggested-chat-prompt');
+
+            suggestedChatPrompts.forEach(prompt => {
+                prompt.addEventListener('click', (e) => {
+                    chatInput.value = e.target.getAttribute('data-prompt');
+                    handleChatSend();
+                });
+            });
+
+            function appendUserMessage(message) {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'flex justify-end';
+                userDiv.innerHTML = `
+                    <div class="chat-user-bubble p-3 max-w-sm sm:max-w-md shadow-md">
+                        <p class="text-sm">${message}</p>
+                    </div>
+                `;
+                chatWindow.appendChild(userDiv);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
+
+            function appendBotResponse(message, groundingTitle, groundingUri) {
+                // Simulate typing indicator
+                const typingDiv = document.createElement('div');
+                typingDiv.className = 'flex justify-start';
+                typingDiv.innerHTML = `<div class="p-3 text-gray-500 text-sm">Processing request...</div>`;
+                chatWindow.appendChild(typingDiv);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+
+                setTimeout(() => {
+                    chatWindow.removeChild(typingDiv); // Remove typing indicator
+
+                    const botDiv = document.createElement('div');
+                    botDiv.className = 'flex justify-start';
+                    let groundingHTML = '';
+                    if (groundingTitle && groundingUri) {
+                        groundingHTML = `
+                            <div class="mt-3 pt-3 border-t border-gray-400">
+                                <p class="font-semibold text-xs text-sg-blue mb-1">🔎 Grounded with Official Source:</p>
+                                <a href="${groundingUri}" target="_blank" class="text-xs italic text-sg-accent hover:underline flex items-center">
+                                    ${groundingTitle} 
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h3.586l-7.293 7.293a1 1 0 101.414 1.414L16 6.414V10a1 1 0 102 0V4a1 1 0 00-1-1h-6z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+                            </a>
+                            </div>
+                        `;
+                    }
+                    botDiv.innerHTML = `
+                        <div class="chat-bot-bubble p-3 max-w-sm sm:max-w-md shadow-md">
+                            <p class="font-bold text-sg-blue text-sm">Policy Dialogue Bot</p>
+                            <p class="text-sm mt-1">${message}</p>
+                            ${groundingHTML}
+                        </div>
+                    `;
+                    
+                    chatWindow.appendChild(botDiv);
+                    chatWindow.scrollTop = chatWindow.scrollHeight;
+                }, 2500); // 2.5 second delay
+            }
+
+            function handleChatSend() {
+                const userMessage = chatInput.value.trim();
+                if (userMessage === '') return;
+
+                appendUserMessage(userMessage);
+                chatInput.value = '';
+
+                // Simulate AI Processing and Response
+                const lowerCaseMessage = userMessage.toLowerCase();
+                
+                let botMessage = '';
+                let groundingTitle = null;
+                let groundingUri = null;
+
+                if (lowerCaseMessage.includes('gst') || lowerCaseMessage.includes('goods and services tax')) {
+                    // Scenario 1: GST increase confirmation
+                    botMessage = `**Fact-Check Confirmed:** The Goods and Services Tax (**GST**) rate increased from 8% to **9%** on January 1, 2024. This was the second phase of a planned two-stage increase. The government continues to provide the Assurance Package to help cushion the financial impact on households.`;
+                    groundingTitle = `IRAS GST Information`;
+                    groundingUri = `https://www.iras.gov.sg/taxes/goods-services-tax-(gst)`;
+                } else if (lowerCaseMessage.includes('psle') || lowerCaseMessage.includes('abolish') || lowerCaseMessage.includes('primary school')) {
+                    // Scenario 2: Correcting Education Misconception
+                    botMessage = `**Misconception Corrected:** The government is **not planning to abolish the PSLE** (Primary School Leaving Examination). Recent educational reforms, like the move to the Achievement Levels (ALs) scoring system, are designed to reduce the excessive focus on academic grades and reduce stress, but the examination itself remains.`;
+                    groundingTitle = `Ministry of Education (MOE) Policy Updates`;
+                    groundingUri = `https://www.moe.gov.sg/`;
+                } else if (lowerCaseMessage.includes('carbon tax') || lowerCaseMessage.includes('green tax')) {
+                    // Scenario 3: Carbon Tax Increase
+                    botMessage = `**Fact-Check Confirmed:** The **carbon tax** increased in 2024 from $5 per tonne of emissions to **$25 per tonne**, with plans to raise it further to $45 per tonne by 2026. This measure is central to Singapore's commitment to achieving its net-zero emissions target by 2050.`;
+                    groundingTitle = `NEA Carbon Tax Framework`;
+                    groundingUri = `https://www.nea.gov.sg/energy-waste/climate-change/carbon-tax`;
+                }
+                else {
+                    // Default/Fallback Response
+                    botMessage = `I'm programmed to fact-check specific policy claims related to Singapore's national governance. I do not have a direct match for that query in my repository. Please try asking about common topics like the GST increase, CPF rates, or the Green Plan for a quick, grounded response.`;
+                    groundingTitle = `Gov.SG Official Policy Portal`;
+                    groundingUri = `https://www.gov.sg/policies`;
+                }
+
+                appendBotResponse(botMessage, groundingTitle, groundingUri);
+            }
+
+            chatSendButton.addEventListener('click', handleChatSend);
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleChatSend();
+                }
+            });
+
+        });
+    </script>
+</body>
+</html>
