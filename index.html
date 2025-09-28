@@ -86,7 +86,10 @@
     <!-- Header -->
     <header class="bg-white shadow-lg sticky top-0 z-50 border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center">
-            <h1 class="text-3xl font-extrabold text-sg-blue">Policy<span class="text-gray-600">Nav</span></h1>
+            <div>
+                <h1 class="text-3xl font-extrabold text-sg-blue">Policy<span class="text-gray-600">Nav</span></h1>
+                <p id="backend-status" class="text-sm text-orange-600 font-semibold mt-1">🟡 Checking AI Backend...</p>
+            </div>
             <p class="text-sm text-gray-500 mt-1 sm:mt-0">Professional Governance & Fact-Checking Tool (AI-Assisted)</p>
         </div>
     </header>
@@ -336,11 +339,44 @@
             yearFilter.addEventListener('change', filterTimeline);
             topicFilter.addEventListener('change', filterTimeline);
 
-            // --- 2. Semantic Policy Navigator (Default Policy Search Logic) ---
+            // --- 2. Semantic Policy Navigator (Backend API Integration) ---
             const searchButton = document.getElementById('policy-search-button');
             const searchInput = document.getElementById('policy-search-input');
             const searchResults = document.getElementById('policy-search-results');
             const suggestedPrompts = document.querySelectorAll('.suggested-prompt');
+
+            // Backend API configuration
+            const API_BASE_URL = 'http://localhost:8000';
+            
+            // Add connection status indicator
+            let backendConnected = false;
+            
+            // Test backend connection on page load
+            async function testBackendConnection() {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/health`);
+                    backendConnected = response.ok;
+                    updateConnectionStatus();
+                } catch (error) {
+                    backendConnected = false;
+                    updateConnectionStatus();
+                }
+            }
+            
+            function updateConnectionStatus() {
+                const statusElement = document.getElementById('backend-status');
+                if (statusElement) {
+                    statusElement.className = backendConnected 
+                        ? 'text-green-600 font-semibold' 
+                        : 'text-orange-600 font-semibold';
+                    statusElement.textContent = backendConnected 
+                        ? '🟢 AI Backend Connected' 
+                        : '🟡 Fallback Mode (Start backend for full AI)';
+                }
+            }
+            
+            // Test connection when page loads
+            testBackendConnection();
 
             suggestedPrompts.forEach(prompt => {
                 prompt.addEventListener('click', (e) => {
@@ -349,8 +385,37 @@
                 });
             });
 
-            // Default Data Repository (AI-Generated content based on general policies)
-            // NOTE: URIs verified to be working, official general policy links.
+            // Backend API call function for search
+            async function callSearchAPI(query, maxResults = 5) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/search`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            query: query,
+                            max_results: maxResults
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    backendConnected = true;
+                    updateConnectionStatus();
+                    return result;
+                } catch (error) {
+                    console.error('Search API call failed:', error);
+                    backendConnected = false;
+                    updateConnectionStatus();
+                    return null;
+                }
+            }
+
+            // Fallback data in case backend is unavailable
             const searchResponses = {
                 greenPlan: {
                     score: '98%',
@@ -426,13 +491,54 @@
                 }
             };
 
+            // Create search result HTML from backend API response
+            function createSearchResultFromAPI(apiResponse) {
+                const webResultsList = apiResponse.results.map((result, index) => 
+                    `<li class="text-gray-700 ml-4 mb-2">
+                        <strong>${result.title}</strong><br>
+                        <span class="text-sm text-gray-600">${result.snippet || 'No snippet available'}</span><br>
+                        <a href="${result.url}" target="_blank" class="text-sg-accent hover:underline text-xs">
+                            ${result.url}
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline ml-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M11 3a1 1 0 100 2h3.586l-7.293 7.293a1 1 0 101.414 1.414L16 6.414V10a1 1 0 102 0V4a1 1 0 00-1-1h-6z"/>
+                                <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
+                            </svg>
+                        </a>
+                    </li>`
+                ).join('');
+
+                return `
+                    <div class="border border-sg-accent p-6 rounded-lg bg-sg-light shadow-md">
+                        <div class="flex justify-between items-center mb-3 border-b pb-2">
+                            <h4 class="font-extrabold text-lg text-sg-blue">AI-Powered Policy Navigator</h4>
+                            <span class="text-sm font-bold ${apiResponse.used_web_results ? 'text-green-600 bg-green-100' : 'text-orange-600 bg-orange-100'} px-3 py-1 rounded-full">
+                                ${apiResponse.used_web_results ? 'Web-Enhanced' : 'Knowledge-Based'}
+                            </span>
+                        </div>
+                        <div class="mb-4 p-4 bg-white rounded-lg border">
+                            <h5 class="font-semibold text-sg-blue mb-2">AI Summary:</h5>
+                            <p class="text-gray-700">${apiResponse.summary}</p>
+                        </div>
+                        ${apiResponse.results.length > 0 ? `
+                            <div class="mt-4">
+                                <h5 class="font-semibold text-sg-blue mb-2">Source Materials:</h5>
+                                <ul class="space-y-2">
+                                    ${webResultsList}
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            // Fallback function for local data
             function createSearchResultHTML(response) {
                 const detailsList = response.details.map(detail => `<li class="text-gray-700 ml-4">${detail}</li>`).join('');
                 return `
                     <div class="border border-sg-accent p-6 rounded-lg bg-sg-light shadow-md">
                         <div class="flex justify-between items-center mb-3 border-b pb-2">
-                            <h4 class="font-extrabold text-lg text-sg-blue">Semantic Policy Navigator (AI-Generated Summary)</h4>
-                            <span class="text-sm font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full">Score: ${response.score}</span>
+                            <h4 class="font-extrabold text-lg text-sg-blue">Semantic Policy Navigator (Fallback Mode)</h4>
+                            <span class="text-sm font-bold text-orange-600 bg-orange-100 px-3 py-1 rounded-full">Offline Mode</span>
                         </div>
                         <p class="mb-3 text-sm italic text-gray-600">Query Matched: "${response.query}"</p>
                         <p class="mb-4 text-gray-700">${response.summary}</p>
@@ -449,8 +555,9 @@
                 `;
             }
 
-            searchButton.addEventListener('click', () => {
-                const query = searchInput.value.toLowerCase().trim();
+            async function performSearch() {
+                const query = searchInput.value.trim();
+                if (!query) return;
                 
                 searchResults.innerHTML = `
                     <div class="p-4 text-center text-sg-blue font-semibold">
@@ -462,40 +569,88 @@
                     </div>
                 `;
 
-                setTimeout(() => {
+                // Try backend API first
+                const apiResponse = await callSearchAPI(query);
+                
+                if (apiResponse) {
+                    // Use backend response
+                    searchResults.innerHTML = createSearchResultFromAPI(apiResponse);
+                } else {
+                    // Fallback to local data
+                    const queryLower = query.toLowerCase();
                     let resultHtml = '';
 
-                    // Match logic for suggested prompts
-                    if (query.includes('green plan') || query.includes('sustainability') || query.includes('net-zero')) {
+                    if (queryLower.includes('green plan') || queryLower.includes('sustainability') || queryLower.includes('net-zero')) {
                         resultHtml = createSearchResultHTML(searchResponses.greenPlan);
-                    } else if (query.includes('cpf') || query.includes('contribution rates') || query.includes('older workers') || query.includes('retirement')) {
+                    } else if (queryLower.includes('cpf') || queryLower.includes('contribution rates') || queryLower.includes('older workers') || queryLower.includes('retirement')) {
                         resultHtml = createSearchResultHTML(searchResponses.finance);
-                    } else if (query.includes('digital blueprint') || query.includes('smart nation') || query.includes('digital economy')) {
+                    } else if (queryLower.includes('digital blueprint') || queryLower.includes('smart nation') || queryLower.includes('digital economy')) {
                         resultHtml = createSearchResultHTML(searchResponses.digital);
-                    } else if (query.includes('forward singapore') || query.includes('social compact')) {
+                    } else if (queryLower.includes('forward singapore') || queryLower.includes('social compact')) {
                         resultHtml = createSearchResultHTML(searchResponses.social);
-                    } else if (query.includes('skillsfuture') || query.includes('mid-career') || query.includes('upgrading')) {
+                    } else if (queryLower.includes('skillsfuture') || queryLower.includes('mid-career') || queryLower.includes('upgrading')) {
                         resultHtml = createSearchResultHTML(searchResponses.skills);
-                    }
-                    else {
+                    } else {
                         resultHtml = `
                             <div class="border border-red-300 p-6 rounded-lg bg-red-50 text-red-800 shadow-md">
-                                <h4 class="font-extrabold text-lg">Semantic Policy Navigator (AI)</h4>
+                                <h4 class="font-extrabold text-lg">Backend Unavailable - Fallback Mode</h4>
                                 <hr class="my-2 border-red-200">
-                                <p class="font-semibold">Search Status: Insufficient semantic match found.</p>
-                                <p class="mt-2 text-sm">Please use one of the suggested prompts or phrase your query around known topics like **Green Plan**, **GST/CPF**, **Forward Singapore**, or **SkillsFuture** for a direct match.</p>
+                                <p class="font-semibold">Search Status: Backend API unavailable, using local fallback.</p>
+                                <p class="mt-2 text-sm">Please try starting the backend server or use one of the suggested prompts for cached results.</p>
                             </div>
                         `;
                     }
                     searchResults.innerHTML = resultHtml;
-                }, 2000); // 2.0 second delay
+                }
+            }
+            
+            // Add event listeners for search
+            searchButton.addEventListener('click', performSearch);
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
             });
 
-            // --- 3. Algorithmic Policy Dialogue (Default Chatbot Logic) ---
+            // --- 3. Algorithmic Policy Dialogue (Backend API Integration) ---
             const chatInput = document.getElementById('chat-input');
             const chatSendButton = document.getElementById('chat-send-button');
             const chatWindow = document.getElementById('chat-window');
             const suggestedChatPrompts = document.querySelectorAll('.suggested-chat-prompt');
+            
+            // Store chat history for backend API
+            let chatHistory = [];
+
+            // Backend API call function for chat
+            async function callChatAPI(message, history = []) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/chat`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: message,
+                            history: history,
+                            max_results: 3
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    backendConnected = true;
+                    updateConnectionStatus();
+                    return result;
+                } catch (error) {
+                    console.error('Chat API call failed:', error);
+                    backendConnected = false;
+                    updateConnectionStatus();
+                    return null;
+                }
+            }
 
             suggestedChatPrompts.forEach(prompt => {
                 prompt.addEventListener('click', (e) => {
@@ -516,8 +671,8 @@
                 chatWindow.scrollTop = chatWindow.scrollHeight;
             }
 
-            function appendBotResponse(message, groundingTitle, groundingUri) {
-                // Simulate typing indicator
+            function appendBotResponse(apiResponse = null, fallbackMessage = null, groundingTitle = null, groundingUri = null) {
+                // Show typing indicator
                 const typingDiv = document.createElement('div');
                 typingDiv.className = 'flex justify-start';
                 typingDiv.innerHTML = `<div class="p-3 text-gray-500 text-sm">Processing request...</div>`;
@@ -525,73 +680,118 @@
                 chatWindow.scrollTop = chatWindow.scrollHeight;
 
                 setTimeout(() => {
-                    chatWindow.removeChild(typingDiv); // Remove typing indicator
+                    chatWindow.removeChild(typingDiv);
 
                     const botDiv = document.createElement('div');
                     botDiv.className = 'flex justify-start';
-                    let groundingHTML = '';
-                    if (groundingTitle && groundingUri) {
-                        groundingHTML = `
+                    
+                    let message = fallbackMessage;
+                    let sourcesHTML = '';
+                    
+                    if (apiResponse) {
+                        message = apiResponse.answer;
+                        
+                        // Add web sources if available
+                        if (apiResponse.used_web_results && apiResponse.web_results.length > 0) {
+                            sourcesHTML = `
+                                <div class="mt-3 pt-3 border-t border-gray-400">
+                                    <p class="font-semibold text-xs text-sg-blue mb-2">🔎 Web Sources Used:</p>
+                                    ${apiResponse.web_results.map((result, index) => 
+                                        `<div class="text-xs mb-1">
+                                            <a href="${result.url}" target="_blank" class="text-sg-accent hover:underline">
+                                                [${index + 1}] ${result.title}
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline ml-1" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M11 3a1 1 0 100 2h3.586l-7.293 7.293a1 1 0 101.414 1.414L16 6.414V10a1 1 0 102 0V4a1 1 0 00-1-1h-6z"/>
+                                                    <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
+                                                </svg>
+                                            </a>
+                                        </div>`
+                                    ).join('')}
+                                </div>
+                            `;
+                        }
+                    } else if (groundingTitle && groundingUri) {
+                        sourcesHTML = `
                             <div class="mt-3 pt-3 border-t border-gray-400">
-                                <p class="font-semibold text-xs text-sg-blue mb-1">🔎 Grounded with Official Source:</p>
+                                <p class="font-semibold text-xs text-sg-blue mb-1">🔎 Fallback Source:</p>
                                 <a href="${groundingUri}" target="_blank" class="text-xs italic text-sg-accent hover:underline flex items-center">
-                                    ${groundingTitle} 
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h3.586l-7.293 7.293a1 1 0 101.414 1.414L16 6.414V10a1 1 0 102 0V4a1 1 0 00-1-1h-6z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
-                            </a>
+                                    ${groundingTitle}
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M11 3a1 1 0 100 2h3.586l-7.293 7.293a1 1 0 101.414 1.414L16 6.414V10a1 1 0 102 0V4a1 1 0 00-1-1h-6z"/>
+                                        <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
+                                    </svg>
+                                </a>
                             </div>
                         `;
                     }
+                    
                     botDiv.innerHTML = `
                         <div class="chat-bot-bubble p-3 max-w-sm sm:max-w-md shadow-md">
-                            <p class="font-bold text-sg-blue text-sm">Policy Dialogue Bot</p>
+                            <p class="font-bold text-sg-blue text-sm">
+                                Policy Dialogue Bot ${apiResponse ? '(AI-Powered)' : '(Fallback Mode)'}
+                            </p>
                             <p class="text-sm mt-1">${message}</p>
-                            ${groundingHTML}
+                            ${sourcesHTML}
                         </div>
                     `;
                     
                     chatWindow.appendChild(botDiv);
                     chatWindow.scrollTop = chatWindow.scrollHeight;
-                }, 2500); // 2.5 second delay
+                }, 1500);
             }
 
-            function handleChatSend() {
+            async function handleChatSend() {
                 const userMessage = chatInput.value.trim();
                 if (userMessage === '') return;
 
                 appendUserMessage(userMessage);
+                
+                // Add user message to chat history
+                chatHistory.push({
+                    role: 'user',
+                    content: userMessage
+                });
+                
                 chatInput.value = '';
 
-                // Simulate AI Processing and Response
-                const lowerCaseMessage = userMessage.toLowerCase();
+                // Try backend API first
+                const apiResponse = await callChatAPI(userMessage, chatHistory);
                 
-                let botMessage = '';
-                let groundingTitle = null;
-                let groundingUri = null;
+                if (apiResponse) {
+                    // Add assistant response to chat history
+                    chatHistory.push({
+                        role: 'assistant', 
+                        content: apiResponse.answer
+                    });
+                    
+                    appendBotResponse(apiResponse);
+                } else {
+                    // Fallback to local responses
+                    const lowerCaseMessage = userMessage.toLowerCase();
+                    let botMessage = '';
+                    let groundingTitle = null;
+                    let groundingUri = null;
 
-                if (lowerCaseMessage.includes('gst') || lowerCaseMessage.includes('goods and services tax')) {
-                    // Scenario 1: GST increase confirmation
-                    botMessage = `**Fact-Check Confirmed:** The Goods and Services Tax (**GST**) rate increased from 8% to **9%** on January 1, 2024. This was the second phase of a planned two-stage increase. The government continues to provide the Assurance Package to help cushion the financial impact on households.`;
-                    groundingTitle = `IRAS GST Information`;
-                    groundingUri = `https://www.iras.gov.sg/taxes/goods-services-tax-(gst)`;
-                } else if (lowerCaseMessage.includes('psle') || lowerCaseMessage.includes('abolish') || lowerCaseMessage.includes('primary school')) {
-                    // Scenario 2: Correcting Education Misconception
-                    botMessage = `**Misconception Corrected:** The government is **not planning to abolish the PSLE** (Primary School Leaving Examination). Recent educational reforms, like the move to the Achievement Levels (ALs) scoring system, are designed to reduce the excessive focus on academic grades and reduce stress, but the examination itself remains.`;
-                    groundingTitle = `Ministry of Education (MOE) Policy Updates`;
-                    groundingUri = `https://www.moe.gov.sg/`;
-                } else if (lowerCaseMessage.includes('carbon tax') || lowerCaseMessage.includes('green tax')) {
-                    // Scenario 3: Carbon Tax Increase
-                    botMessage = `**Fact-Check Confirmed:** The **carbon tax** increased in 2024 from $5 per tonne of emissions to **$25 per tonne**, with plans to raise it further to $45 per tonne by 2026. This measure is central to Singapore's commitment to achieving its net-zero emissions target by 2050.`;
-                    groundingTitle = `NEA Carbon Tax Framework`;
-                    groundingUri = `https://www.nea.gov.sg/energy-waste/climate-change/carbon-tax`;
-                }
-                else {
-                    // Default/Fallback Response
-                    botMessage = `I'm programmed to fact-check specific policy claims related to Singapore's national governance. I do not have a direct match for that query in my repository. Please try asking about common topics like the GST increase, CPF rates, or the Green Plan for a quick, grounded response.`;
-                    groundingTitle = `Gov.SG Official Policy Portal`;
-                    groundingUri = `https://www.gov.sg/policies`;
-                }
+                    if (lowerCaseMessage.includes('gst') || lowerCaseMessage.includes('goods and services tax')) {
+                        botMessage = `**Fact-Check Confirmed:** The Goods and Services Tax (**GST**) rate increased from 8% to **9%** on January 1, 2024. This was the second phase of a planned two-stage increase. The government continues to provide the Assurance Package to help cushion the financial impact on households.`;
+                        groundingTitle = `IRAS GST Information`;
+                        groundingUri = `https://www.iras.gov.sg/taxes/goods-services-tax-(gst)`;
+                    } else if (lowerCaseMessage.includes('psle') || lowerCaseMessage.includes('abolish') || lowerCaseMessage.includes('primary school')) {
+                        botMessage = `**Misconception Corrected:** The government is **not planning to abolish the PSLE** (Primary School Leaving Examination). Recent educational reforms, like the move to the Achievement Levels (ALs) scoring system, are designed to reduce the excessive focus on academic grades and reduce stress, but the examination itself remains.`;
+                        groundingTitle = `Ministry of Education (MOE) Policy Updates`;
+                        groundingUri = `https://www.moe.gov.sg/`;
+                    } else if (lowerCaseMessage.includes('carbon tax') || lowerCaseMessage.includes('green tax')) {
+                        botMessage = `**Fact-Check Confirmed:** The **carbon tax** increased in 2024 from $5 per tonne of emissions to **$25 per tonne**, with plans to raise it further to $45 per tonne by 2026. This measure is central to Singapore's commitment to achieving its net-zero emissions target by 2050.`;
+                        groundingTitle = `NEA Carbon Tax Framework`;
+                        groundingUri = `https://www.nea.gov.sg/energy-waste/climate-change/carbon-tax`;
+                    } else {
+                        botMessage = `Backend unavailable - using fallback mode. I have limited responses for GST, PSLE, and carbon tax queries. Please try starting the backend server for full AI capabilities.`;
+                        groundingTitle = `Gov.SG Official Policy Portal`;
+                        groundingUri = `https://www.gov.sg/policies`;
+                    }
 
-                appendBotResponse(botMessage, groundingTitle, groundingUri);
+                    appendBotResponse(null, botMessage, groundingTitle, groundingUri);
+                }
             }
 
             chatSendButton.addEventListener('click', handleChatSend);
